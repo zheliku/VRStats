@@ -56,7 +56,7 @@ def run_baseline_tests(
 
         # 使用 Polars 计算交叉表
         ct_df = df.group_by([group_col, var]).agg(pl.len().alias("count"))
-        ct_pivot = ct_df.pivot(values="count", index=group_col, columns=var).fill_null(0)
+        ct_pivot = ct_df.pivot(var, index=group_col).fill_null(0)
         ct_values = ct_pivot.select(pl.all().exclude(group_col)).to_numpy()
 
         chi2, p, dof, expected = chi2_contingency(ct_values)
@@ -104,7 +104,7 @@ def run_baseline_tests(
 
         s1_sq, s2_sq = np.var(a, ddof=1), np.var(b, ddof=1)
         v1, v2 = s1_sq / n1, s2_sq / n2
-        df_welch = (v1 + v2) ** 2 / (v1 ** 2 / (n1 - 1) + v2 ** 2 / (n2 - 1))
+        df_welch = float((v1 + v2) ** 2 / (v1 ** 2 / (n1 - 1) + v2 ** 2 / (n2 - 1)))
 
         results.append(
             BaselineTestResult(

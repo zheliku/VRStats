@@ -12,13 +12,13 @@
 6. 输出结果为 pandas.DataFrame，并打印在控制台
 """
 
-from src.parts import (
+from parts import (
     baseline,
     descriptives,
     normality,
     two_group_tests,
 )
-from src.setting import args
+from setting import args
 from datetime import datetime
 from xlsxwriter import Workbook
 

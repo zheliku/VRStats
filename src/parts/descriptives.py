@@ -2,7 +2,7 @@ from pathlib import Path
 import polars as pl
 from dataclasses import dataclass, asdict
 from typing import Any
-from ..utils.func import insert_blank_rows_by_block
+from utils.func import insert_blank_rows_by_block
 
 
 @dataclass
@@ -58,13 +58,13 @@ def compute_descriptives(
                 variable=var,
                 group=str(g),
                 n=int(x.len()),
-                mean=float(x.mean()),
-                std=float(x.std()),
-                median=float(x.median()),
-                q1=float(x.quantile(0.25)),
-                q3=float(x.quantile(0.75)),
-                minimum=float(x.min()),
-                maximum=float(x.max()),
+                mean=float(x.mean()), # type: ignore
+                std=float(x.std()), # type: ignore
+                median=float(x.median()), # type: ignore
+                q1=float(x.quantile(0.25)), # type: ignore
+                q3=float(x.quantile(0.75)), # type: ignore
+                minimum=float(x.min()), # type: ignore
+                maximum=float(x.max()), # type: ignore
             )
             results.append(desc)
 

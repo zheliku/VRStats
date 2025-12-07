@@ -2,13 +2,13 @@ import polars as pl
 from dataclasses import dataclass, asdict
 from typing import Any
 from pathlib import Path
-from ..utils.func import (
+from utils.func import (
     independent_ttest,
     mannwhitney_u,
     holm_bonferroni,
     benjamini_hochberg
 )
-from ..utils.func import insert_blank_rows_by_block
+from utils.func import insert_blank_rows_by_block
 
 
 @dataclass
