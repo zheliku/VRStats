@@ -5,6 +5,8 @@ from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Optional
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 @dataclass
@@ -22,6 +24,154 @@ class BaselineTestResult:
     n_group_b: Optional[int] = None  # t 检验中组 B 的样本量
 
 
+def visualize_categorical_variable(
+        df: pl.DataFrame,
+        group_col: str,
+        var: str,
+        save_path: Path,
+) -> None:
+    """
+    为分类变量生成分组条形图（符合顶级会议论文标准）。
+
+    参数:
+        df: Polars DataFrame
+        group_col: 分组变量的列名
+        var: 分类变量名称
+        save_path: 保存图片的路径
+    """
+    # 转换为 pandas DataFrame 供 seaborn 使用
+    plot_df = df.select([group_col, var]).to_pandas()
+    
+    # 创建图形（适合双栏排版的尺寸：3.5英寸宽）
+    fig, ax = plt.subplots(figsize=(3.5, 2.8))
+    
+    # 使用 seaborn 绘制条形图
+    sns.countplot(
+        data=plot_df,
+        x=var,
+        hue=group_col,
+        ax=ax,
+        edgecolor="black",
+        linewidth=0.8,
+        saturation=0.8
+    )
+    
+    # 设置标题和标签（学术风格，简洁明了）
+    ax.set_xlabel(var, fontweight='normal')
+    ax.set_ylabel('Count', fontweight='normal')
+    ax.set_title(f'{var}', fontweight='bold', pad=10)
+    
+    # 调整图例（放在最佳位置，避免遮挡数据）
+    ax.legend(
+        title=group_col,
+        frameon=True,
+        edgecolor='black',
+        fancybox=False,
+        shadow=False,
+        loc='best'
+    )
+    
+    # 在条形上添加数值标签（清晰、不突兀）
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%d', padding=2, fontsize=8)
+    
+    # 优化网格线（淡化背景）
+    ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # 调整spine样式
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.0)
+        spine.set_color('black')
+    
+    # 保存高质量图片
+    fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
+    print(f"[Info] 分类变量可视化已保存: {save_path}")
+    
+    # 关闭图形释放内存
+    plt.close(fig)
+
+
+def visualize_continuous_variable(
+        df: pl.DataFrame,
+        group_col: str,
+        var: str,
+        save_path: Path,
+) -> None:
+    """
+    为连续变量生成分组小提琴图+箱线图（符合顶级会议论文标准）。
+
+    参数:
+        df: Polars DataFrame
+        group_col: 分组变量的列名
+        var: 连续变量名称
+        save_path: 保存图片的路径
+    """
+    # 转换为 pandas DataFrame
+    plot_df = df.select([group_col, var]).to_pandas()
+    
+    # 创建图形（适合双栏排版的尺寸）
+    fig, ax = plt.subplots(figsize=(3.5, 2.8))
+    
+    # 使用 seaborn 绘制小提琴图
+    sns.violinplot(
+        data=plot_df,
+        x=group_col,
+        y=var,
+        ax=ax,
+        inner="box",
+        linewidth=1.0,
+        cut=0,
+        saturation=0.8
+    )
+    
+    # 添加数据点（使用 swarm 或 strip，取决于数据量）
+    # 如果数据点较少用 swarmplot，较多用 stripplot
+    n_points = len(plot_df)
+    if n_points < 100:
+        sns.swarmplot(
+            data=plot_df,
+            x=group_col,
+            y=var,
+            ax=ax,
+            color="black",
+            alpha=0.4,
+            size=2.5
+        )
+    else:
+        sns.stripplot(
+            data=plot_df,
+            x=group_col,
+            y=var,
+            ax=ax,
+            color="black",
+            alpha=0.3,
+            size=2,
+            jitter=0.2
+        )
+    
+    # 设置标题和标签（学术风格）
+    ax.set_xlabel(group_col, fontweight='normal')
+    ax.set_ylabel("Score", fontweight='normal')
+    ax.set_title(f'{var}', fontweight='bold', pad=10)
+    
+    # 优化网格线
+    ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # 调整spine样式
+    for spine in ax.spines.values():
+        spine.set_linewidth(1.0)
+        spine.set_color('black')
+    
+    # 保存高质量图片
+    fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
+    print(f"[Info] 连续变量可视化已保存: {save_path}")
+    
+    # 关闭图形释放内存
+    plt.close(fig)
+
+
 def run_baseline_tests(
         df: pl.DataFrame,
         group_col: str,
@@ -29,12 +179,14 @@ def run_baseline_tests(
         group_b: str,
         categorical_vars: list[str],
         continuous_vars: list[str],
+        visualization_dir: Path | None = None,
 ) -> list[BaselineTestResult]:
     """
     对分类变量和连续变量执行基线特征检验。
-    
+
     对分类变量使用卡方检验，对连续变量使用 Welch t 检验。
-    
+    如果指定了 visualization_dir，会为每个变量生成可视化图表。
+
     参数:
         df: Polars DataFrame，包含所有变量
         group_col: 分组变量的列名
@@ -42,11 +194,19 @@ def run_baseline_tests(
         group_b: 第二组的标签
         categorical_vars: 分类变量列表
         continuous_vars: 连续变量列表
-    
+        visualization_dir: 可视化图表保存目录（可选）
+
     返回:
         BaselineTestResult 对象列表
     """
     results: list[BaselineTestResult] = []
+    
+    # 创建可视化目录（如果指定）- 放在 baseline 子目录下
+    baseline_vis_dir = None
+    if visualization_dir is not None:
+        baseline_vis_dir = visualization_dir / "baseline"
+        baseline_vis_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[Info] 基线特征可视化图表将保存到: {baseline_vis_dir}")
 
     # ----- 1) 分类变量：卡方检验 -----
     for var in categorical_vars:
@@ -81,6 +241,14 @@ def run_baseline_tests(
                 n_total=int(n),
             )
         )
+        
+        # 生成可视化（如果指定目录）
+        if baseline_vis_dir is not None:
+            try:
+                save_path = baseline_vis_dir / f"categorical_{var}.png"
+                visualize_categorical_variable(df, group_col, var, save_path)
+            except Exception as e:
+                print(f"[Warning] 生成 {var} 可视化时出错: {e}")
 
     # ----- 2) 连续变量：Welch t 检验 -----
     for var in continuous_vars:
@@ -104,7 +272,8 @@ def run_baseline_tests(
 
         s1_sq, s2_sq = np.var(a, ddof=1), np.var(b, ddof=1)
         v1, v2 = s1_sq / n1, s2_sq / n2
-        df_welch = float((v1 + v2) ** 2 / (v1 ** 2 / (n1 - 1) + v2 ** 2 / (n2 - 1)))
+        df_welch = float((v1 + v2) ** 2 / (v1 ** 2 /
+                         (n1 - 1) + v2 ** 2 / (n2 - 1)))
 
         results.append(
             BaselineTestResult(
@@ -119,6 +288,14 @@ def run_baseline_tests(
                 n_group_b=n2,
             )
         )
+        
+        # 生成可视化（如果指定目录）
+        if baseline_vis_dir is not None:
+            try:
+                save_path = baseline_vis_dir / f"continuous_{var}.png"
+                visualize_continuous_variable(df, group_col, var, save_path)
+            except Exception as e:
+                print(f"[Warning] 生成 {var} 可视化时出错: {e}")
 
     return results
 
@@ -131,12 +308,13 @@ def process(
         group_b: str,
         categorical_vars: list[str],
         continuous_vars: list[str],
+        visualization_dir: Path | None = None,
 ) -> tuple[pl.DataFrame, str]:
     """
     基线特征检验的主处理流程。
-    
+
     从 Excel 读取数据，执行基线特征检验，并返回结果 DataFrame。
-    
+
     参数:
         input_excel_path: 输入的 Excel 文件路径
         input_sheet_name: 工作表名称或索引
@@ -145,14 +323,14 @@ def process(
         group_b: 第二组的标签
         categorical_vars: 分类变量列表
         continuous_vars: 连续变量列表
-    
+
     返回:
         tuple: (结果 DataFrame, sheet名称)
     """
     # 1. 读取数据
     df = pl.read_excel(input_excel_path, sheet_name=input_sheet_name)
 
-    # 2. 运行基线特征检验
+    # 2. 运行基线特征检验（包含可视化）
     baseline_results = run_baseline_tests(
         df=df,
         group_col=group_col,
@@ -160,6 +338,7 @@ def process(
         group_b=group_b,
         categorical_vars=categorical_vars,
         continuous_vars=continuous_vars,
+        visualization_dir=visualization_dir,
     )
 
     # 3. 转换为 DataFrame并输出
@@ -173,10 +352,10 @@ def process(
 def process_with_args(args: Any) -> tuple[pl.DataFrame, str]:
     """
     从命令行参数对象调用 process 函数。
-    
+
     参数:
         args: 包含所有必要参数的对象
-    
+
     返回:
         tuple: (结果 DataFrame, sheet名称)
     """
@@ -188,4 +367,5 @@ def process_with_args(args: Any) -> tuple[pl.DataFrame, str]:
         group_b=args.group_label_b,
         categorical_vars=args.baseline_categorical_vars,
         continuous_vars=args.baseline_continuous_vars,
+        visualization_dir=args.visualization_dir,
     )

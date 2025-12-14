@@ -18,18 +18,14 @@ from parts import (
     normality,
     two_group_tests,
 )
-from setting import args
+from setting import args, setup_publication_style
 from datetime import datetime
 from xlsxwriter import Workbook
 
 
 if __name__ == "__main__":
-    results = [
-        baseline.process_with_args(args),
-        descriptives.process_with_args(args),
-        normality.process_with_args(args),
-        two_group_tests.process_with_args(args),
-    ]
+    # 设置学术论文风格（全局设置，仅需调用一次）
+    setup_publication_style()
 
     # 生成输出文件名
     if args.apply_timestamp:
@@ -37,6 +33,16 @@ if __name__ == "__main__":
         args.output_excel_path = args.output_excel_path.with_name(
             f"{args.output_excel_path.stem}_{timestamp}{args.output_excel_path.suffix}"
         )
+        args.visualization_dir = args.visualization_dir.with_name(
+            f"{args.visualization_dir.stem}_{timestamp}{args.visualization_dir.suffix}"
+        )
+
+    results = [
+        baseline.process_with_args(args),
+        descriptives.process_with_args(args),
+        normality.process_with_args(args),
+        two_group_tests.process_with_args(args),
+    ]
 
     # 创建 Excel writer
     with Workbook(args.output_excel_path) as wb:

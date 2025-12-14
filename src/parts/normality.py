@@ -6,6 +6,8 @@ import polars as pl
 from dataclasses import dataclass, asdict
 from typing import Any
 from utils.func import insert_blank_rows_by_block
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 
 @dataclass
@@ -68,6 +70,81 @@ def check_normality(
     return results
 
 
+def visualize_normality(
+        df: pl.DataFrame,
+        group_col: str,
+        variables: list[str],
+        block_name: str,
+        save_dir: Path,
+) -> None:
+    """
+    为正态性检验生成 Q-Q 图（分组对比）。
+    
+    参数:
+        df: Polars DataFrame，包含所有变量
+        group_col: 分组变量的列名
+        variables: 需要检验的变量列表
+        block_name: 所属数据模块名称
+        save_dir: 保存图片的目录
+    """
+    for var in variables:
+        if var not in df.columns:
+            continue
+        
+        # 获取所有组
+        groups = df.select(pl.col(group_col).unique()).to_series().to_list()
+        n_groups = len(groups)
+        
+        if n_groups == 0:
+            continue
+        
+        # 创建子图（每组一个 Q-Q 图）
+        fig, axes = plt.subplots(1, n_groups, figsize=(3.5 * n_groups, 2.8))
+        
+        if n_groups == 1:
+            axes = [axes]
+        
+        for idx, g in enumerate(groups):
+            ax = axes[idx]
+            
+            # 提取该组数据
+            x = df.filter(pl.col(group_col) == g).select(pl.col(var).drop_nulls())[var].to_numpy()
+            
+            if len(x) < 3:
+                ax.text(0.5, 0.5, 'Insufficient data', 
+                       ha='center', va='center', transform=ax.transAxes)
+                ax.set_title(f'{g}', fontweight='bold')
+                continue
+            
+            # 绘制 Q-Q 图
+            stats.probplot(x, dist="norm", plot=ax)
+            
+            # 设置标题和标签
+            ax.set_title(f'{g}', fontweight='bold', pad=10)
+            ax.set_xlabel('理论分位数', fontweight='normal')
+            ax.set_ylabel('样本分位数', fontweight='normal')
+            
+            # 优化网格线
+            ax.grid(alpha=0.3, linestyle='--', linewidth=0.5)
+            ax.set_axisbelow(True)
+            
+            # 调整spine样式
+            for spine in ax.spines.values():
+                spine.set_linewidth(1.0)
+                spine.set_color('black')
+        
+        # 添加总标题
+        fig.suptitle(f'{var} - Q-Q图', fontweight='bold', fontsize=12)
+        fig.tight_layout()
+        
+        # 保存图片
+        save_path = save_dir / f"{var}_qqplot.png"
+        fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
+        print(f"[Info] 正态性检验可视化已保存: {save_path}")
+        
+        plt.close(fig)
+
+
 def process(
         input_excel_path: str | Path,
         input_sheet_name: Any,
@@ -75,6 +152,7 @@ def process(
         group_col: str,
         variable_blocks: dict[str, list[str]],
         add_blank_rows: bool = True,
+        visualization_dir: Path | None = None,
 ) -> tuple[pl.DataFrame, str]:
     """
     正态性检验的主处理流程。
@@ -88,6 +166,7 @@ def process(
         group_col: 分组变量的列名
         variable_blocks: 数据模块字典，键为模块名，值为变量列表
         add_blank_rows: 是否在不同模块间添加空行
+        visualization_dir: 可视化图表保存目录（可选）
     
     返回:
         tuple: (结果 DataFrame, sheet名称)
@@ -96,12 +175,28 @@ def process(
     df = pl.read_excel(input_excel_path, sheet_name=input_sheet_name)
 
     all_norm: list[NormalityResult] = []
+    
+    # 创建可视化目录（如果指定）- 放在 normality 子目录下
+    norm_vis_dir = None
+    if visualization_dir is not None:
+        norm_vis_dir = visualization_dir / "normality"
+        norm_vis_dir.mkdir(parents=True, exist_ok=True)
+        print(f"[Info] 正态性检验可视化图表将保存到: {norm_vis_dir}")
 
     # 2. 对每个模块执行正态性检验
     for block_name, vars_in_block in variable_blocks.items():
         # 计算此模块的正态性检验
         norm_block = check_normality(df, group_col, vars_in_block, block_name, alpha=normality_alpha)
         all_norm.extend(norm_block)
+        
+        # 生成可视化（如果指定目录）
+        if norm_vis_dir is not None:
+            try:
+                block_dir = norm_vis_dir / block_name
+                block_dir.mkdir(parents=True, exist_ok=True)
+                visualize_normality(df, group_col, vars_in_block, block_name, block_dir)
+            except Exception as e:
+                print(f"[Warning] 生成 {block_name} 可视化时出错: {e}")
 
     # 3. 转换为 DataFrame
     norm_df = pl.DataFrame([asdict(d) for d in all_norm])
@@ -134,4 +229,5 @@ def process_with_args(args: Any) -> tuple[pl.DataFrame, str]:
         group_col=args.group_col,
         variable_blocks=args.variable_blocks,
         add_blank_rows=args.add_blank_rows,
+        visualization_dir=args.visualization_dir,
     )

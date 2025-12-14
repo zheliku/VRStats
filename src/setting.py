@@ -1,9 +1,57 @@
 from typing import Dict, List
 import argparse
 from pathlib import Path
+import seaborn as sns
+from matplotlib import rcParams
+
+
+def setup_publication_style():
+    """
+    设置符合顶级会议论文标准的绘图风格（CHI、IEEE VR等）。
+    
+    特点：
+    - 使用 Times New Roman 字体（学术期刊标准）
+    - 支持中文显示（SimHei 黑体）
+    - 高分辨率、清晰的线条和边框
+    - 适合双栏排版的字号设置
+    
+    建议在程序入口处调用一次即可。
+    """
+    # 设置中文字体支持
+    rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']  # 中文字体
+    rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+    
+    # 设置学术论文标准字体
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.size'] = 10
+    rcParams['axes.labelsize'] = 10
+    rcParams['axes.titlesize'] = 11
+    rcParams['xtick.labelsize'] = 9
+    rcParams['ytick.labelsize'] = 9
+    rcParams['legend.fontsize'] = 9
+    
+    # 设置线条和边框样式（清晰、专业）
+    rcParams['axes.linewidth'] = 1.0
+    rcParams['grid.linewidth'] = 0.5
+    rcParams['lines.linewidth'] = 1.5
+    rcParams['patch.linewidth'] = 1.0
+    
+    # 设置图形边距和布局
+    rcParams['figure.autolayout'] = False
+    rcParams['savefig.bbox'] = 'tight'
+    rcParams['savefig.pad_inches'] = 0.05
+    
+    # 设置高质量输出
+    rcParams['savefig.dpi'] = 300
+    rcParams['figure.dpi'] = 100
+    
+    # 设置颜色和样式
+    sns.set_palette("colorblind")  # 使用色盲友好的配色方案
+
 
 INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/Origin.xlsx"  # TODO: 改成你的 Excel 文件路径
 OUTPUT_EXCEL_PATH = Path(__file__).parent.parent / "output/Analysis.xlsx"  # TODO: 输出报告文件名
+VISUALIZATION_DIR = Path(__file__).parent.parent / "output/visualization"
 SHEET_NAME = "Sheet1"  # 可以是 sheet 名，也可以是索引 0,1,...
 
 # 分组信息
@@ -155,5 +203,12 @@ parser.add_argument(
     default=True,
     help="是否在输出的描述性统计表文件名中添加时间戳"
 )
+parser.add_argument(
+    "--visualization_dir",
+    type=Path,
+    default=VISUALIZATION_DIR,
+    help="可视化结果保存目录"
+)
+
 
 args = parser.parse_args()  # ★★ 关键

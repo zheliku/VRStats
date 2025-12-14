@@ -31,6 +31,7 @@ VRStats 是一个基于 **Polars** 开发的高性能两组比较自动统计分
 
 📈 **专业输出**：
 - Excel 多工作表报告（baseline、descriptives、normality、tests）
+- 高质量学术论文级可视化图表（符合CHI、IEEE VR等顶会标准）
 - 自动模块分隔，便于阅读
 - 包含完整的统计量、p 值和效应量
 
@@ -46,6 +47,7 @@ VRStats 是一个基于 **Polars** 开发的高性能两组比较自动统计分
 
 - **数据处理**：Polars（高性能 DataFrame 库）
 - **统计计算**：SciPy、NumPy、Statsmodels
+- **可视化**：Seaborn + Matplotlib（符合顶级会议论文标准）
 - **Excel 处理**：Polars + fastexcel + xlsxwriter
 - **依赖管理**：uv（快速 Python 包管理器）
 
@@ -65,15 +67,20 @@ VRStats/
 ├── data/
 │   └── Origin.xlsx    # 原始数据文件（需自行准备）
 ├── output/
-│   └── Analysis.xlsx  # 自动生成的分析报告
+│   ├── Analysis.xlsx  # 自动生成的分析报告
+│   └── visualization/ # 可视化图表输出目录
+│       ├── baseline/      # 基线特征可视化
+│       ├── descriptives/  # 描述性统计可视化
+│       ├── normality/     # 正态性检验Q-Q图
+│       └── tests/         # 两组检验森林图
 └── src/
     ├── main.py        # 主入口程序
-    ├── setting.py     # 配置文件
+    ├── setting.py     # 统一配置文件（包含绘图风格设置）
     ├── parts/
-    │   ├── baseline.py          # 基线特征检验
-    │   ├── descriptives.py      # 描述性统计
-    │   ├── normality.py         # 正态性检验
-    │   └── two_group_tests.py   # 两组比较检验
+    │   ├── baseline.py          # 基线特征检验 + 可视化
+    │   ├── descriptives.py      # 描述性统计 + 可视化
+    │   ├── normality.py         # 正态性检验 + 可视化
+    │   └── two_group_tests.py   # 两组比较检验 + 可视化
     └── utils/
         └── func.py              # 工具函数
 ```
@@ -308,9 +315,13 @@ uv run -m src.main --add_blank_rows False
 
 ### 6.1 输出文件
 
-分析完成后，会在 `output/` 目录生成 `Analysis.xlsx` 文件，包含以下工作表：
+分析完成后，会在 `output/` 目录生成以下文件：
 
-#### 📋 **baseline** 工作表
+#### 📊 Excel 分析报告 (`Analysis.xlsx`)
+
+包含以下工作表：
+
+##### 📋 **baseline** 工作表
 基线特征检验结果
 - 分类变量：卡方检验结果 + Cramér's V 效应量
 - 连续变量：Welch t 检验结果
@@ -339,6 +350,37 @@ uv run -m src.main --add_blank_rows False
 - Holm-Bonferroni 校正后的 p 值
 - Benjamini-Hochberg FDR 校正后的 p 值
 - 显著性判断（True/False）
+
+#### 🎨 可视化图表
+
+所有可视化图表保存在 `output/visualization/` 目录下，采用学术论文标准：
+
+##### **baseline/** - 基线特征可视化
+- **分类变量**：分组条形图（含数值标签）
+- **连续变量**：小提琴图 + 箱线图 + 数据点
+- 文件命名：`categorical_{变量名}.png`、`continuous_{变量名}.png`
+
+##### **descriptives/** - 描述性统计可视化
+- **组间对比柱状图**：均值 ± 标准误（Mean±SEM）
+- 按模块分类，每个变量一张图
+- 文件命名：`{模块名}/{变量名}_comparison.png`
+
+##### **normality/** - 正态性检验可视化
+- **Q-Q 图**：理论分位数 vs 样本分位数
+- 每个变量的所有组并排显示
+- 文件命名：`{模块名}/{变量名}_qqplot.png`
+
+##### **tests/** - 两组检验可视化
+- **森林图**：效应量 + 95% 置信区间
+- 显著性颜色标记（红色 p<0.05，蓝色 p≥0.05）
+- 文件命名：`{模块名}_forest.png`
+
+**图表特点**：
+- ✅ 300 DPI 高分辨率，适合论文发表
+- ✅ 色盲友好配色方案
+- ✅ 中文字体支持（SimHei 黑体）
+- ✅ 符合 CHI、IEEE VR 等顶级会议标准
+- ✅ 双栏排版优化尺寸（3.5 英寸宽）
 
 ### 6.2 结果解读
 
