@@ -3,8 +3,8 @@ import polars as pl
 from dataclasses import dataclass, asdict
 from typing import Any
 from utils.func import insert_blank_rows_by_block
-import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 @dataclass
@@ -91,7 +91,6 @@ def visualize_descriptives(
         save_dir: 保存图片的目录
     """
     import pandas as pd
-    import numpy as np
     
     # 为每个变量创建一个图表
     for var in variables:
@@ -119,20 +118,21 @@ def visualize_descriptives(
         # 创建图形
         fig, ax = plt.subplots(figsize=(3.5, 2.8))
         
+        # 设置颜色方案
+        colors = plt.cm.Set2.colors
+        
         # 绘制柱状图
-        sns.barplot(
-            data=plot_df,
-            x=group_col,
-            y='mean',
-            ax=ax,
+        x_pos = np.arange(len(plot_df))
+        bars = ax.bar(
+            x_pos,
+            plot_df['mean'],
+            color=[colors[i % len(colors)] for i in range(len(plot_df))],
             edgecolor='black',
             linewidth=0.8,
-            saturation=0.8,
-            errorbar=None  # 手动添加误差线
+            alpha=0.8
         )
         
         # 添加误差线（标准误）
-        x_pos = range(len(plot_df))
         ax.errorbar(
             x_pos,
             plot_df['mean'],
@@ -148,6 +148,8 @@ def visualize_descriptives(
         ax.set_xlabel(group_col, fontweight='normal')
         ax.set_ylabel(f'{var} (Mean±SEM)', fontweight='normal')
         ax.set_title(f'{var}组间对比', fontweight='bold', pad=10)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(plot_df[group_col])
         
         # 优化网格线
         ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)

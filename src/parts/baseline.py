@@ -5,7 +5,6 @@ from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, asdict
 from typing import Optional
-import seaborn as sns
 import matplotlib.pyplot as plt
 
 
@@ -39,28 +38,43 @@ def visualize_categorical_variable(
         var: 分类变量名称
         save_path: 保存图片的路径
     """
-    # 转换为 pandas DataFrame 供 seaborn 使用
+    # 转换为 pandas DataFrame 供绘图使用
     plot_df = df.select([group_col, var]).to_pandas()
-    
+
     # 创建图形（适合双栏排版的尺寸：3.5英寸宽）
     fig, ax = plt.subplots(figsize=(3.5, 2.8))
-    
-    # 使用 seaborn 绘制条形图
-    sns.countplot(
-        data=plot_df,
-        x=var,
-        hue=group_col,
-        ax=ax,
-        edgecolor="black",
-        linewidth=0.8,
-        saturation=0.8
-    )
-    
+
+    # 计算每组每类别的数量
+    count_data = plot_df.groupby([var, group_col]).size().unstack(fill_value=0)
+
+    # 设置颜色方案（色盲友好）
+    colors = plt.cm.Set2.colors
+
+    # 绘制分组条形图
+    x = np.arange(len(count_data.index))
+    width = 0.35
+    groups = count_data.columns
+
+    for i, group in enumerate(groups):
+        offset = width * (i - len(groups) / 2 + 0.5)
+        bars = ax.bar(
+            x + offset,
+            count_data[group],
+            width,
+            label=group,
+            color=colors[i % len(colors)],
+            edgecolor='black',
+            linewidth=0.8)
+        # 添加数值标签
+        ax.bar_label(bars, fmt='%d', padding=2, fontsize=8)
+
     # 设置标题和标签（学术风格，简洁明了）
     ax.set_xlabel(var, fontweight='normal')
     ax.set_ylabel('Count', fontweight='normal')
     ax.set_title(f'{var}', fontweight='bold', pad=10)
-    
+    ax.set_xticks(x)
+    ax.set_xticklabels(count_data.index)
+
     # 调整图例（放在最佳位置，避免遮挡数据）
     ax.legend(
         title=group_col,
@@ -70,24 +84,20 @@ def visualize_categorical_variable(
         shadow=False,
         loc='best'
     )
-    
-    # 在条形上添加数值标签（清晰、不突兀）
-    for container in ax.containers:
-        ax.bar_label(container, fmt='%d', padding=2, fontsize=8)
-    
+
     # 优化网格线（淡化背景）
     ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
-    
+
     # 调整spine样式
     for spine in ax.spines.values():
         spine.set_linewidth(1.0)
         spine.set_color('black')
-    
+
     # 保存高质量图片
     fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
     print(f"[Info] 分类变量可视化已保存: {save_path}")
-    
+
     # 关闭图形释放内存
     plt.close(fig)
 
@@ -109,65 +119,69 @@ def visualize_continuous_variable(
     """
     # 转换为 pandas DataFrame
     plot_df = df.select([group_col, var]).to_pandas()
-    
+
     # 创建图形（适合双栏排版的尺寸）
     fig, ax = plt.subplots(figsize=(3.5, 2.8))
-    
-    # 使用 seaborn 绘制小提琴图
-    sns.violinplot(
-        data=plot_df,
-        x=group_col,
-        y=var,
-        ax=ax,
-        inner="box",
-        linewidth=1.0,
-        cut=0,
-        saturation=0.8
+
+    # 设置颜色方案
+    colors = plt.cm.Set2.colors
+    groups = plot_df[group_col].unique()
+
+    # 为每组绘制小提琴图
+    positions = np.arange(len(groups))
+    violin_parts = ax.violinplot(
+        [plot_df[plot_df[group_col] == g][var].dropna().values for g in groups],
+        positions=positions,
+        widths=0.7,
+        showmeans=False,
+        showmedians=False,
+        showextrema=False
     )
-    
-    # 添加数据点（使用 swarm 或 strip，取决于数据量）
-    # 如果数据点较少用 swarmplot，较多用 stripplot
-    n_points = len(plot_df)
-    if n_points < 100:
-        sns.swarmplot(
-            data=plot_df,
-            x=group_col,
-            y=var,
-            ax=ax,
-            color="black",
-            alpha=0.4,
-            size=2.5
-        )
-    else:
-        sns.stripplot(
-            data=plot_df,
-            x=group_col,
-            y=var,
-            ax=ax,
-            color="black",
-            alpha=0.3,
-            size=2,
-            jitter=0.2
-        )
-    
+
+    # 设置小提琴图颜色
+    for i, pc in enumerate(violin_parts['bodies']):
+        pc.set_facecolor(colors[i % len(colors)])
+        pc.set_alpha(0.7)
+        pc.set_edgecolor('black')
+        pc.set_linewidth(1.0)
+
+    # 添加箱线图
+    for i, g in enumerate(groups):
+        data = plot_df[plot_df[group_col] == g][var].dropna().values
+        bp = ax.boxplot([data], positions=[positions[i]], widths=0.15,
+                        patch_artist=True, showfliers=False,
+                        boxprops=dict(facecolor='white', edgecolor='black', linewidth=1.0),
+                        whiskerprops=dict(color='black', linewidth=1.0),
+                        capprops=dict(color='black', linewidth=1.0),
+                        medianprops=dict(color='red', linewidth=1.5))
+
+    # 添加数据点（使用抖动避免重叠）
+    for i, g in enumerate(groups):
+        data = plot_df[plot_df[group_col] == g][var].dropna().values
+        y = data
+        x = np.random.normal(positions[i], 0.04, size=len(y))
+        ax.scatter(x, y, alpha=0.4, s=20, color='black')
+
     # 设置标题和标签（学术风格）
     ax.set_xlabel(group_col, fontweight='normal')
     ax.set_ylabel("Score", fontweight='normal')
     ax.set_title(f'{var}', fontweight='bold', pad=10)
-    
+    ax.set_xticks(positions)
+    ax.set_xticklabels(groups)
+
     # 优化网格线
     ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
-    
+
     # 调整spine样式
     for spine in ax.spines.values():
         spine.set_linewidth(1.0)
         spine.set_color('black')
-    
+
     # 保存高质量图片
     fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.05)
     print(f"[Info] 连续变量可视化已保存: {save_path}")
-    
+
     # 关闭图形释放内存
     plt.close(fig)
 
@@ -200,7 +214,7 @@ def run_baseline_tests(
         BaselineTestResult 对象列表
     """
     results: list[BaselineTestResult] = []
-    
+
     # 创建可视化目录（如果指定）- 放在 baseline 子目录下
     baseline_vis_dir = None
     if visualization_dir is not None:
@@ -241,7 +255,7 @@ def run_baseline_tests(
                 n_total=int(n),
             )
         )
-        
+
         # 生成可视化（如果指定目录）
         if baseline_vis_dir is not None:
             try:
@@ -273,7 +287,7 @@ def run_baseline_tests(
         s1_sq, s2_sq = np.var(a, ddof=1), np.var(b, ddof=1)
         v1, v2 = s1_sq / n1, s2_sq / n2
         df_welch = float((v1 + v2) ** 2 / (v1 ** 2 /
-                         (n1 - 1) + v2 ** 2 / (n2 - 1)))
+                                           (n1 - 1) + v2 ** 2 / (n2 - 1)))
 
         results.append(
             BaselineTestResult(
@@ -288,7 +302,7 @@ def run_baseline_tests(
                 n_group_b=n2,
             )
         )
-        
+
         # 生成可视化（如果指定目录）
         if baseline_vis_dir is not None:
             try:

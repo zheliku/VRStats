@@ -31,7 +31,7 @@ VRStats 是一个基于 **Polars** 开发的高性能两组比较自动统计分
 
 📈 **专业输出**：
 - Excel 多工作表报告（baseline、descriptives、normality、tests）
-- 高质量学术论文级可视化图表（符合CHI、IEEE VR等顶会标准）
+- 高质量学术论文级可视化图表（使用 scienceplots，符合 Nature/Science/IEEE 标准）
 - 自动模块分隔，便于阅读
 - 包含完整的统计量、p 值和效应量
 
@@ -47,7 +47,7 @@ VRStats 是一个基于 **Polars** 开发的高性能两组比较自动统计分
 
 - **数据处理**：Polars（高性能 DataFrame 库）
 - **统计计算**：SciPy、NumPy、Statsmodels
-- **可视化**：Seaborn + Matplotlib（符合顶级会议论文标准）
+- **可视化**：scienceplots + Matplotlib（符合 Nature/Science/IEEE 等顶级期刊标准）
 - **Excel 处理**：Polars + fastexcel + xlsxwriter
 - **依赖管理**：uv（快速 Python 包管理器）
 
@@ -377,10 +377,11 @@ uv run -m src.main --add_blank_rows False
 
 **图表特点**：
 - ✅ 300 DPI 高分辨率，适合论文发表
+- ✅ scienceplots 学术风格（Nature/Science/IEEE 标准）
 - ✅ 色盲友好配色方案
 - ✅ 中文字体支持（SimHei 黑体）
-- ✅ 符合 CHI、IEEE VR 等顶级会议标准
 - ✅ 双栏排版优化尺寸（3.5 英寸宽）
+- ✅ 专业排版，无需后期调整
 
 ### 6.2 结果解读
 

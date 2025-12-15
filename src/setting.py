@@ -1,8 +1,9 @@
 from typing import Dict, List
 import argparse
 from pathlib import Path
-import seaborn as sns
+import matplotlib.pyplot as plt
 from matplotlib import rcParams
+import scienceplots
 
 
 def setup_publication_style():
@@ -10,16 +11,19 @@ def setup_publication_style():
     设置符合顶级会议论文标准的绘图风格（CHI、IEEE VR等）。
     
     特点：
-    - 使用 Times New Roman 字体（学术期刊标准）
+    - 使用 scienceplots 的学术论文风格
     - 支持中文显示（SimHei 黑体）
     - 高分辨率、清晰的线条和边框
     - 适合双栏排版的字号设置
     
     建议在程序入口处调用一次即可。
     """
-    # 设置中文字体支持
-    rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']  # 中文字体
+    # 设置中文字体支持（必须在 style.use 之前设置）
+    rcParams['font.sans-serif'] = ['Microsoft YaHei', 'DejaVu Sans']  # 中文字体
     rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
+    # 使用 scienceplots 的学术论文风格
+    plt.style.use(['science', 'ieee', 'no-latex'])
     
     # 设置学术论文标准字体
     rcParams['font.family'] = 'sans-serif'
@@ -44,9 +48,6 @@ def setup_publication_style():
     # 设置高质量输出
     rcParams['savefig.dpi'] = 300
     rcParams['figure.dpi'] = 100
-    
-    # 设置颜色和样式
-    sns.set_palette("colorblind")  # 使用色盲友好的配色方案
 
 
 INPUT_EXCEL_PATH = Path(__file__).parent.parent / "data/Origin.xlsx"  # TODO: 改成你的 Excel 文件路径
